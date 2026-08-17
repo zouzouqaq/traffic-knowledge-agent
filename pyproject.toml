@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "traffic-knowledge-agent"
+version = "0.1.0"
+description = "Traffic-domain retrieval and analysis Agent"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
+  "langgraph>=0.2,<1",
+  "numpy>=1.26,<3",
+  "pydantic>=2.9,<3",
+  "pydantic-settings>=2.5,<3",
+  "pymupdf>=1.24,<2",
+  "python-docx>=1.1,<2",
+  "python-multipart>=0.0.12,<1",
+  "rank-bm25>=0.2.2,<1",
+  "streamlit>=1.38,<2",
+  "uvicorn>=0.30,<1",
+]
+
+[project.optional-dependencies]
+retrieval = [
+  "chromadb>=0.5,<1",
+  "sentence-transformers>=3,<6",
+]
+evaluation = [
+  "psutil>=6,<8",
+  "ragas>=0.2,<1",
+]
+dev = [
+  "pytest>=8,<9",
+  "pytest-cov>=5,<7",
+  "ruff>=0.6,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
