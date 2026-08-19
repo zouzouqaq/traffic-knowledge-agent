@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "dataset": "PEMS04",
+  "split": "test",
+  "horizon": {
+    "steps": 12,
+    "interval_minutes": 5
+  },
+  "created_at": "2026-08-19T13:30:00+08:00",
+  "environment": {
+    "device": "NVIDIA GeForce RTX 4090",
+    "python": "3.11.15"
+  },
+  "models": [
+    {
+      "name": "gru",
+      "mae": 27.13627815246582,
+      "rmse": 41.09721374511719,
+      "mape": 22.993698716163635
+    },
+    {
+      "name": "historical_average",
+      "mae": 26.480512619018555,
+      "rmse": 43.52836608886719,
+      "mape": 16.586066782474518
+    }
+  ]
+}
