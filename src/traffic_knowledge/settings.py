@@ -14,6 +14,13 @@ def _positive_float(name: str, default: str) -> float:
     return value
 
 
+def _nonnegative_float(name: str, default: str) -> float:
+    value = float(os.getenv(name, default))
+    if value < 0:
+        raise ValueError(f"{name} must be zero or greater")
+    return value
+
+
 def _positive_int(name: str, default: str) -> int:
     value = int(os.getenv(name, default))
     if value <= 0:
@@ -31,6 +38,9 @@ class Settings:
     forecast_base_url: str
     request_timeout_seconds: float
     max_file_bytes: int
+    retrieval_vector_weight: float
+    retrieval_bm25_weight: float
+    embedding_model_name: str
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -40,6 +50,15 @@ class Settings:
         ).rstrip("/")
         if not forecast_base_url:
             raise ValueError("TRAFFIC_FORECAST_BASE_URL must not be empty")
+        vector_weight = _nonnegative_float("TRAFFIC_RETRIEVAL_VECTOR_WEIGHT", "0.6")
+        bm25_weight = _nonnegative_float("TRAFFIC_RETRIEVAL_BM25_WEIGHT", "0.4")
+        if vector_weight + bm25_weight <= 0:
+            raise ValueError("at least one retrieval weight must be greater than zero")
+        embedding_model_name = os.getenv(
+            "TRAFFIC_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5"
+        ).strip()
+        if not embedding_model_name:
+            raise ValueError("TRAFFIC_EMBEDDING_MODEL must not be empty")
 
         return cls(
             data_dir=data_dir,
@@ -50,6 +69,9 @@ class Settings:
                 "TRAFFIC_REQUEST_TIMEOUT_SECONDS", "10"
             ),
             max_file_bytes=_positive_int("TRAFFIC_MAX_FILE_BYTES", "52428800"),
+            retrieval_vector_weight=vector_weight,
+            retrieval_bm25_weight=bm25_weight,
+            embedding_model_name=embedding_model_name,
         )
 
     def ensure_directories(self) -> None:
