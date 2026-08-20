@@ -25,7 +25,11 @@ class Bm25Index:
 
     def rebuild(self, chunks: Sequence[DocumentChunk]) -> None:
         self._chunks = tuple(chunks)
-        self._model = BM25Okapi([_tokenize(chunk.text) for chunk in self._chunks])
+        self._model = (
+            BM25Okapi([_tokenize(chunk.text) for chunk in self._chunks])
+            if self._chunks
+            else None
+        )
 
     def search(self, query: str, top_k: int = 5) -> tuple[SearchHit, ...]:
         if top_k <= 0:

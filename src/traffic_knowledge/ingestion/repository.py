@@ -86,6 +86,20 @@ class DocumentRepository:
             ).fetchone()
         return self._record(row) if row is not None else None
 
+    def find_by_id(self, document_id: str) -> DocumentRecord | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM documents WHERE document_id = ?", (document_id,)
+            ).fetchone()
+        return self._record(row) if row is not None else None
+
+    def list_documents(self) -> tuple[DocumentRecord, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM documents ORDER BY created_at, document_id"
+            ).fetchall()
+        return tuple(self._record(row) for row in rows)
+
     def begin_ingestion(self, sha256: str, filename: str) -> DocumentRecord:
         timestamp = _now()
         with self._connect() as connection:
@@ -153,6 +167,28 @@ class DocumentRepository:
             rows = connection.execute(
                 "SELECT * FROM chunks WHERE document_id = ? ORDER BY ordinal",
                 (document_id,),
+            ).fetchall()
+        return tuple(
+            DocumentChunk(
+                chunk_id=row["chunk_id"],
+                document_id=row["document_id"],
+                text=row["text"],
+                location=row["location"],
+                ordinal=row["ordinal"],
+                token_estimate=row["token_estimate"],
+            )
+            for row in rows
+        )
+
+    def list_all_chunks(self) -> tuple[DocumentChunk, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT chunks.* FROM chunks
+                JOIN documents USING (document_id)
+                WHERE documents.status IN ('indexing', 'indexed')
+                ORDER BY documents.created_at, chunks.ordinal, chunks.chunk_id
+                """
             ).fetchall()
         return tuple(
             DocumentChunk(

@@ -4,6 +4,14 @@ from traffic_knowledge.ingestion.chunking import DocumentChunk
 from traffic_knowledge.retrieval.bm25 import Bm25Index
 
 
+def test_empty_index_can_be_rebuilt_and_searched():
+    index = Bm25Index()
+
+    index.rebuild(())
+
+    assert index.search("traffic", top_k=5) == ()
+
+
 def _chunk(chunk_id, document_id, text, ordinal=0):
     return DocumentChunk(
         chunk_id=chunk_id,

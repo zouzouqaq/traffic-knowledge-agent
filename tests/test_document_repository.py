@@ -80,3 +80,18 @@ def test_delete_cascades_to_chunks(tmp_path):
     assert repository.delete(record.document_id) is True
     assert repository.list_chunks(record.document_id) == ()
     assert repository.find_by_sha256("abc123") is None
+
+
+def test_lists_documents_and_all_chunks_in_stable_order(tmp_path):
+    repository = DocumentRepository(tmp_path / "metadata.sqlite3")
+    repository.initialize()
+    first = repository.begin_ingestion("hash-b", "second.md")
+    second = repository.begin_ingestion("hash-a", "first.md")
+    repository.replace_chunks(first.document_id, (_chunk("c2", first.document_id, 0),))
+    repository.replace_chunks(second.document_id, (_chunk("c1", second.document_id, 0),))
+
+    documents = repository.list_documents()
+
+    assert repository.find_by_id(first.document_id) == first
+    assert [record.document_id for record in documents] == [first.document_id, second.document_id]
+    assert [chunk.chunk_id for chunk in repository.list_all_chunks()] == ["c2", "c1"]
