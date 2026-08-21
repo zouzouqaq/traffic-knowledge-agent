@@ -227,3 +227,15 @@ render_benchmark(Client())
     headings = [item.value for item in app.subheader]
     assert "检索效果" in headings
     assert "预测效果" in headings
+
+
+def test_health_status_does_not_render_streamlit_internal_object():
+    app = _run_app(
+        """
+from streamlit_app import _render_health_status
+_render_health_status("degraded")
+"""
+    )
+
+    assert app.warning[0].value == "部分服务不可用"
+    assert len(app.code) == 0

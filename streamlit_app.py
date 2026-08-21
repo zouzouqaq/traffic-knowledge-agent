@@ -263,6 +263,13 @@ def _apply_theme() -> None:
     )
 
 
+def _render_health_status(status: str) -> None:
+    if status == "ok":
+        st.success("API 在线")
+    else:
+        st.warning("部分服务不可用")
+
+
 def main() -> None:
     st.set_page_config(
         page_title="城市交通知识与预测 Agent",
@@ -277,7 +284,7 @@ def main() -> None:
         try:
             health = client.health()
             status = health.get("status", "unknown")
-            st.success("API 在线") if status == "ok" else st.warning("部分服务不可用")
+            _render_health_status(status)
         except ApiClientError:
             st.error("API 离线")
         view = st.radio("视图", VIEW_NAMES)
