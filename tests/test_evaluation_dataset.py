@@ -1,4 +1,6 @@
 import json
+from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -6,6 +8,10 @@ from traffic_knowledge.evaluation.dataset import (
     EvaluationDatasetError,
     load_evaluation_questions,
 )
+from traffic_knowledge.ingestion.chunking import chunk_document
+from traffic_knowledge.ingestion.loaders import load_document
+from traffic_knowledge.ingestion.repository import DocumentRepository
+from traffic_knowledge.ingestion.service import sha256_file
 
 
 def _question(question_id="q-1", **overrides):
@@ -75,3 +81,45 @@ def test_reports_json_line_number_for_invalid_json(tmp_path):
 
     with pytest.raises(EvaluationDatasetError, match="line 2"):
         load_evaluation_questions(path)
+
+
+def test_checked_in_evaluation_set_has_fifty_balanced_questions():
+    project_root = Path(__file__).resolve().parents[1]
+
+    questions = load_evaluation_questions(project_root / "evaluation" / "questions.jsonl")
+    category_counts = Counter(question.category for question in questions)
+
+    assert len(questions) == 50
+    assert category_counts == {
+        "dataset_facts": 10,
+        "metric_interpretation": 10,
+        "model_mechanisms": 10,
+        "model_comparison": 10,
+        "operational_guidance": 10,
+    }
+
+
+def test_checked_in_relevance_ids_match_freshly_rebuilt_corpus(tmp_path):
+    project_root = Path(__file__).resolve().parents[1]
+    corpus_dir = project_root / "evaluation" / "corpus"
+    repository = DocumentRepository(tmp_path / "metadata.sqlite3")
+    repository.initialize()
+    generated_chunk_ids = set()
+
+    for source_path in sorted(corpus_dir.glob("*.md")):
+        record = repository.begin_ingestion(sha256_file(source_path), source_path.name)
+        chunks = chunk_document(
+            record.document_id,
+            load_document(source_path),
+            max_characters=1000,
+            overlap_characters=100,
+        )
+        generated_chunk_ids.update(chunk.chunk_id for chunk in chunks)
+
+    questions = load_evaluation_questions(project_root / "evaluation" / "questions.jsonl")
+    judged_chunk_ids = {
+        chunk_id for question in questions for chunk_id in question.relevant_chunk_ids
+    }
+
+    assert len(generated_chunk_ids) == 50
+    assert judged_chunk_ids == generated_chunk_ids

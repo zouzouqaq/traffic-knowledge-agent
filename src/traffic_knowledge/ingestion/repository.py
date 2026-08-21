@@ -107,7 +107,9 @@ class DocumentRepository:
                 "SELECT * FROM documents WHERE sha256 = ?", (sha256,)
             ).fetchone()
             if row is None:
-                document_id = uuid.uuid4().hex
+                document_id = uuid.uuid5(
+                    uuid.NAMESPACE_URL, f"traffic-knowledge:{sha256}"
+                ).hex
                 connection.execute(
                     """
                     INSERT INTO documents (
