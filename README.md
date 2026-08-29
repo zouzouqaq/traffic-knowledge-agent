@@ -47,3 +47,50 @@ point it at another user's directory on a shared server.
 Development services bind to `127.0.0.1`. The project does not restart Docker,
 run `systemctl`, execute uploaded document instructions, or access unrelated
 server files.
+
+## MVP Reproduction
+
+The following commands reproduce the current local MVP. They use the checked-in
+five-document corpus and the local `BAAI/bge-small-zh-v1.5` model directory.
+
+```bash
+python scripts/ingest_documents.py evaluation/corpus/01_pems04_dataset.md \
+  --database-path data/mvp/metadata.sqlite3
+python scripts/evaluate_retrieval.py \
+  --questions evaluation/questions.jsonl \
+  --data-dir data/evaluation \
+  --embedding-model /path/to/bge-small-zh-v1.5 \
+  --output artifacts/retrieval_metrics.json
+python scripts/run_benchmark.py \
+  --questions evaluation/questions.jsonl \
+  --corpus-dir evaluation/corpus \
+  --output artifacts/agent_benchmark.json \
+  --metrics-path tests/fixtures/metrics_snapshot.json \
+  --embedding-model /path/to/bge-small-zh-v1.5 \
+  --index-dir artifacts/benchmark_index \
+  --top-k 5 --warmup-runs 5 --measured-runs 30 \
+  --throughput-concurrency 4 --expected-question-count 50
+python -m json.tool artifacts/retrieval_metrics.json
+python -m json.tool artifacts/agent_benchmark.json
+```
+
+`run_benchmark.py` measures deterministic citation/tool metrics, serial
+latency p50/p95, a separate fixed-concurrency throughput run, RSS sampled while
+requests are running, and the persisted Chroma index size. It also records Git,
+question/corpus/model/metrics fingerprints and dependency versions. Ragas or an
+independent LLM judge is reported as `not_run` when no evaluator is configured.
+
+The benchmark questions are a checked-in regression set co-designed with this
+corpus; they demonstrate reproducibility, not generalization to unseen users.
+PEMS04 is an academic benchmark and must not be presented as real-time Kunming
+traffic. A Kunming deployment requires an authorized local historical data
+source and a separately validated model.
+
+## Evidence Map
+
+| Resume claim | Evidence | Verification |
+| --- | --- | --- |
+| Hybrid retrieval combines BGE and BM25 | `artifacts/retrieval_metrics.json` | `scripts/evaluate_retrieval.py` |
+| 50-question routing and citation evaluation | `artifacts/agent_benchmark.json` | `scripts/run_benchmark.py` |
+| Reproducible environment and input provenance | benchmark `environment`, `input_fingerprints` | `python -m json.tool` |
+| PEMS04 model metrics | `tests/fixtures/metrics_snapshot.json` | `scripts/run_benchmark.py` |

@@ -118,12 +118,63 @@ class RuleBasedIntentModel:
 
     def classify(self, question: str) -> str:
         lowered = question.lower()
-        has_forecast = any(word in lowered for word in ("预测", "未来", "下一"))
-        has_metrics = any(
-            word in lowered
-            for word in ("指标", "mae", "rmse", "mape", "对比", "比较")
+        explanatory = any(
+            phrase in lowered
+            for phrase in (
+                "表示什么",
+                "为什么",
+                "如何",
+                "是什么",
+                "哪些",
+                "能看出",
+                "什么条件",
+                "特点",
+                "什么时候",
+                "能否",
+                "不可用",
+                "必须",
+                "需要满足",
+                "应关联",
+            )
         )
-        if "综合" in lowered or (has_forecast and has_metrics):
+        explicit_forecast = any(
+            phrase in lowered
+            for phrase in ("请预测", "帮我预测", "预测一下", "预测下")
+        )
+        future_traffic_request = (
+            any(phrase in lowered for phrase in ("未来", "下一"))
+            and any(
+                target in lowered
+                for target in ("交通流量", "交通流", "流量", "路况", "速度", "拥堵")
+            )
+            and "多少步" not in lowered
+            and not explanatory
+        )
+        has_forecast = explicit_forecast or future_traffic_request
+
+        fixed_metric_request = any(
+            phrase in lowered
+            for phrase in (
+                "三个总体指标",
+                "按 mae 比较",
+                "按 rmse 比较",
+                "按 mape 比较",
+                "所有指标上占优",
+                "比较模型指标",
+            )
+        )
+        metric_term = any(
+            term in lowered for term in ("mae", "rmse", "mape", "模型指标")
+        )
+        model_comparison = any(
+            phrase in lowered
+            for phrase in ("对比两个模型", "比较两个模型", "哪个模型", "谁更好")
+        )
+        has_metrics = fixed_metric_request or (
+            not explanatory and (metric_term or model_comparison)
+        )
+
+        if has_forecast and has_metrics:
             return "combined"
         if has_forecast:
             return "forecast"
