@@ -4,7 +4,8 @@
 - 功能代码提交：`7bdc94536d60281c83363d8517a5ca693ae787f8`
 - 检索基准提交：`0e601218`
 - 运行环境：实验室 Linux 服务器，CPU 推理，API `127.0.0.1:18100`，Streamlit `127.0.0.1:18501`
-- 验收结果：MVP 功能与本地部署验收通过；GitHub 新仓库发布待完成认证和 remote 配置
+- GitHub 仓库：<https://github.com/zouzouqaq/traffic-knowledge-agent>
+- 验收结果：MVP 功能、本地部署与 GitHub 发布均通过
 
 ## 一、MVP 边界
 
@@ -78,6 +79,6 @@ cd /8t/usr/zhouh2024/projects/traffic-knowledge-agent/.worktrees/mvp
 .venv/bin/python -m json.tool artifacts/mvp_acceptance_http.json >/dev/null
 ```
 
-## 七、尚未完成
+## 七、发布状态
 
-当前工作树没有配置 Git remote，且 `gh` 尚未登录，因此无法创建并推送新的 GitHub 仓库。完成 GitHub 认证后，需要配置目标仓库、推送 `feature/mvp`，再补充仓库链接。此项是发布步骤，不影响上述本地功能验收结论。
+仓库已公开发布，默认分支为 `main`；服务器的 `feature/mvp` 同时跟踪远端同名分支。运行数据、索引和模型文件继续保留在服务器忽略目录中，不进入公开仓库。
