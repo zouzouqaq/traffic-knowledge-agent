@@ -29,6 +29,37 @@ ruff check .
 Copy `.env.example` to `.env` only when local overrides are needed. The `.env`
 file, runtime data, indexes, artifacts and model files are ignored by Git.
 
+## Optional DeepSeek answers
+
+The default `TRAFFIC_ANSWER_MODE=evidence` is fully offline and deterministic.
+To let DeepSeek compose the final answer from retrieved citations and tool
+results, create `.env`, set `TRAFFIC_ANSWER_MODE=deepseek`, and enter the API
+key directly in your terminal as `DEEPSEEK_API_KEY`. Never paste a key into
+chat, source code, shell history, screenshots or Git-tracked files.
+
+DeepSeek does not choose tools and cannot add evidence. The existing Agent
+still performs intent routing and calls only the bounded knowledge, metrics and
+forecast tools. Invalid citations, authentication errors, rate limits, timeouts
+and service failures automatically fall back to the deterministic evidence
+answer; the UI reports the answer mode and safe fallback code.
+
+With the API and DeepSeek mode already running, evaluate a bounded question
+sample without storing question text, answer text, prompts or credentials:
+
+```bash
+python scripts/evaluate_deepseek_answers.py \
+  --api-url http://127.0.0.1:18100 \
+  --questions-path evaluation/questions.jsonl \
+  --question-count 10 \
+  --output-path artifacts/deepseek_answer_evaluation.json
+python -m json.tool artifacts/deepseek_answer_evaluation.json
+```
+
+The report records success, fallback and citation-presence rates, latency
+p50/p95, token totals, a conservative price estimate, Git state and the
+question-file fingerprint. Pricing is a time-stamped estimate rather than a
+billing statement.
+
 ## Runtime storage
 
 By default, runtime files are stored under `./data`:
