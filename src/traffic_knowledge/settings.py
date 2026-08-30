@@ -41,6 +41,13 @@ class Settings:
     retrieval_vector_weight: float
     retrieval_bm25_weight: float
     embedding_model_name: str
+    answer_mode: str
+    deepseek_api_key: str | None
+    deepseek_base_url: str
+    deepseek_model: str
+    deepseek_timeout_seconds: float
+    deepseek_temperature: float
+    deepseek_max_output_tokens: int
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -54,6 +61,20 @@ class Settings:
         bm25_weight = _nonnegative_float("TRAFFIC_RETRIEVAL_BM25_WEIGHT", "0.4")
         if vector_weight + bm25_weight <= 0:
             raise ValueError("at least one retrieval weight must be greater than zero")
+        answer_mode = os.getenv("TRAFFIC_ANSWER_MODE", "evidence").strip().lower()
+        if answer_mode not in {"evidence", "deepseek"}:
+            raise ValueError("TRAFFIC_ANSWER_MODE must be evidence or deepseek")
+        deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "").strip() or None
+        if answer_mode == "deepseek" and deepseek_api_key is None:
+            raise ValueError("DEEPSEEK_API_KEY is required in deepseek mode")
+        deepseek_base_url = os.getenv(
+            "DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+        ).strip().rstrip("/")
+        if not deepseek_base_url:
+            raise ValueError("DEEPSEEK_BASE_URL must not be empty")
+        deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash").strip()
+        if not deepseek_model:
+            raise ValueError("DEEPSEEK_MODEL must not be empty")
         embedding_model_name = os.getenv(
             "TRAFFIC_EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5"
         ).strip()
@@ -72,6 +93,13 @@ class Settings:
             retrieval_vector_weight=vector_weight,
             retrieval_bm25_weight=bm25_weight,
             embedding_model_name=embedding_model_name,
+            answer_mode=answer_mode,
+            deepseek_api_key=deepseek_api_key,
+            deepseek_base_url=deepseek_base_url,
+            deepseek_model=deepseek_model,
+            deepseek_timeout_seconds=_positive_float("DEEPSEEK_TIMEOUT_SECONDS", "20"),
+            deepseek_temperature=_nonnegative_float("DEEPSEEK_TEMPERATURE", "0.2"),
+            deepseek_max_output_tokens=_positive_int("DEEPSEEK_MAX_OUTPUT_TOKENS", "800"),
         )
 
     def ensure_directories(self) -> None:
