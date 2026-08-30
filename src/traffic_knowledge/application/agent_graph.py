@@ -10,6 +10,10 @@ from typing import Literal, Protocol, TypedDict
 import numpy as np
 from langgraph.graph import END, START, StateGraph
 
+from traffic_knowledge.application.grounded_answers import (
+    EvidenceOnlyAnswerGenerator,
+    GroundedAnswerContext,
+)
 from traffic_knowledge.application.question_answering import AnswerResult
 from traffic_knowledge.domain.agent import AgentError, AgentResponse, ToolCallRecord
 from traffic_knowledge.integrations.forecast_client import (
@@ -42,6 +46,7 @@ class AgentDependencies:
     metrics_repository: object
     metrics_path: Path
     max_tool_calls: int = 3
+    answer_generator: object | None = None
 
     def __post_init__(self) -> None:
         if self.max_tool_calls <= 0:
@@ -116,41 +121,24 @@ def build_agent_graph(dependencies: AgentDependencies):
         )
 
     def compose_grounded_answer(state: AgentState) -> dict:
-        parts = []
-        citations = ()
-        knowledge = state.get("knowledge_result")
-        if knowledge is not None:
-            parts.append(knowledge.answer)
-            citations = knowledge.citations
-        metrics = state.get("metrics_result")
-        if metrics is not None:
-            values = "; ".join(
-                f"{item.name}: MAE={item.mae:.3f}, RMSE={item.rmse:.3f}, "
-                f"MAPE={item.mape:.2f}%"
-                for item in metrics.models
-            )
-            parts.append(
-                f"{metrics.dataset} {metrics.split} 集的 {metrics.horizon.steps} 步"
-                f"模型指标为: {values}。"
-            )
-        forecast = state.get("forecast_result")
-        if forecast is not None:
-            prediction_values = np.asarray(forecast.predictions, dtype=np.float64)
-            parts.append(
-                f"{forecast.model} 预测已完成, 输出形状为 {forecast.output_shape}, "
-                f"预测值范围 {prediction_values.min():.3f}--"
-                f"{prediction_values.max():.3f}, 均值 {prediction_values.mean():.3f}。"
-            )
-        if not parts:
-            parts.append("当前请求未能获得可用结果。")
         errors = tuple(state.get("errors", []))
+        context = GroundedAnswerContext(
+            question=state["question"],
+            knowledge=state.get("knowledge_result"),
+            metrics=state.get("metrics_result"),
+            forecast=state.get("forecast_result"),
+            errors=errors,
+        )
+        generator = dependencies.answer_generator or EvidenceOnlyAnswerGenerator()
+        generated = generator.generate(context)
         return {
             "response": AgentResponse(
-                answer="\n".join(parts),
-                citations=tuple(citations),
+                answer=generated.answer,
+                citations=generated.citations,
                 tool_calls=tuple(state.get("tool_calls", [])),
                 partial=bool(errors),
                 errors=errors,
+                generation=generated.generation,
             )
         }
 
