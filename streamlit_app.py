@@ -112,6 +112,22 @@ def _render_agent_result(result: dict[str, Any]) -> None:
             f'{error.get("tool", "tool")}: {error.get("code", "ERROR")} - '
             f'{error.get("message", "no details")}'
         )
+    generation = result.get("generation", {})
+    mode = generation.get("answer_mode", "evidence")
+    model = generation.get("answer_model")
+    caption = f"回答模式: {model or mode}"
+    if generation.get("llm_fallback"):
+        code = generation.get("llm_error_code", "LLM_ERROR")
+        caption += f" · 已回退 ({code})"
+    elif mode == "deepseek":
+        duration = float(generation.get("duration_ms", 0))
+        prompt_tokens = int(generation.get("prompt_tokens", 0))
+        completion_tokens = int(generation.get("completion_tokens", 0))
+        caption += (
+            f" · {duration:.0f} ms"
+            f" · tokens {prompt_tokens}+{completion_tokens}"
+        )
+    st.caption(caption)
     citations = result.get("citations", [])
     if citations:
         st.subheader("来源")

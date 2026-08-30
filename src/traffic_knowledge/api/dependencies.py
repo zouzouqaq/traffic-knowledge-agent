@@ -17,9 +17,14 @@ from traffic_knowledge.application.agent_graph import (
     AgentDependencies,
     build_agent_graph,
 )
+from traffic_knowledge.application.grounded_answers import (
+    EvidenceOnlyAnswerGenerator,
+    ResilientDeepSeekAnswerGenerator,
+)
 from traffic_knowledge.application.question_answering import QuestionAnsweringService
 from traffic_knowledge.ingestion.repository import DocumentRepository
 from traffic_knowledge.ingestion.service import IngestionService
+from traffic_knowledge.integrations.deepseek import DeepSeekClient
 from traffic_knowledge.integrations.forecast_client import ForecastClient
 from traffic_knowledge.integrations.metrics_snapshot import MetricsSnapshotRepository
 from traffic_knowledge.retrieval.bm25 import Bm25Index
@@ -202,6 +207,28 @@ def _forecast_is_healthy(base_url: str, timeout_seconds: float) -> bool:
         return False
 
 
+def build_answer_generator(
+    settings: Settings,
+    transport: httpx.BaseTransport | None = None,
+):
+    """Build the configured generator while keeping evidence mode offline."""
+    fallback = EvidenceOnlyAnswerGenerator()
+    if settings.answer_mode == "evidence":
+        return fallback
+    if settings.deepseek_api_key is None:
+        raise ValueError("DEEPSEEK_API_KEY is required in deepseek mode")
+    client = DeepSeekClient(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_model,
+        timeout_seconds=settings.deepseek_timeout_seconds,
+        temperature=settings.deepseek_temperature,
+        max_output_tokens=settings.deepseek_max_output_tokens,
+        transport=transport,
+    )
+    return ResilientDeepSeekAnswerGenerator(client=client, fallback=fallback)
+
+
 def _build_default_dependencies() -> ApiDependencies:
     settings = Settings.from_env()
     settings.ensure_directories()
@@ -266,6 +293,7 @@ def _build_default_dependencies() -> ApiDependencies:
             forecast_client=forecast_client,
             metrics_repository=metrics_repository,
             metrics_path=metrics_path,
+            answer_generator=build_answer_generator(settings),
         )
     )
     return ApiDependencies(
