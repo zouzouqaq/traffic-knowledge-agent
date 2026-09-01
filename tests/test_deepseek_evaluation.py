@@ -2,7 +2,9 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import scripts.evaluate_deepseek_answers as evaluation_cli
 from traffic_knowledge.evaluation.deepseek_runner import (
     build_deepseek_evaluation_report,
     summarize_deepseek_responses,
@@ -104,3 +106,24 @@ def test_deepseek_evaluation_cli_exposes_bounded_inputs():
     assert "--questions-path" in result.stdout
     assert "--question-count" in result.stdout
     assert "--output-path" in result.stdout
+
+
+def test_cli_records_the_configured_deepseek_provider_not_local_chat_api():
+    environment = {"DEEPSEEK_BASE_URL": "https://api.deepseek.com/v1/"}
+
+    result = evaluation_cli.configured_deepseek_base_url(environment)
+
+    assert result == "https://api.deepseek.com/v1"
+
+
+def test_cli_selects_only_knowledge_questions():
+    questions = (
+        SimpleNamespace(id="metric", expected_tool="metrics"),
+        SimpleNamespace(id="knowledge-1", expected_tool="knowledge"),
+        SimpleNamespace(id="forecast", expected_tool="forecast"),
+        SimpleNamespace(id="knowledge-2", expected_tool="knowledge"),
+    )
+
+    selected = evaluation_cli.select_knowledge_questions(questions, count=2)
+
+    assert [question.id for question in selected] == ["knowledge-1", "knowledge-2"]
