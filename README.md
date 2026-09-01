@@ -37,6 +37,26 @@ results, create `.env`, set `TRAFFIC_ANSWER_MODE=deepseek`, and enter the API
 key directly in your terminal as `DEEPSEEK_API_KEY`. Never paste a key into
 chat, source code, shell history, screenshots or Git-tracked files.
 
+Enter the key without terminal echo and write it only to the ignored `.env`:
+
+```bash
+cd /8t/usr/zhouh2024/projects/traffic-knowledge-agent/.worktrees/mvp
+umask 077
+read -rsp "DeepSeek API Key: " DEEPSEEK_API_KEY
+printf '\n'
+temporary_env=$(mktemp)
+if [ -f .env ]; then
+  grep -vE '^(DEEPSEEK_API_KEY|TRAFFIC_ANSWER_MODE|DEEPSEEK_MODEL)=' \
+    .env > "$temporary_env"
+fi
+printf 'DEEPSEEK_API_KEY=%s\n' "$DEEPSEEK_API_KEY" >> "$temporary_env"
+printf 'TRAFFIC_ANSWER_MODE=deepseek\n' >> "$temporary_env"
+printf 'DEEPSEEK_MODEL=deepseek-v4-flash\n' >> "$temporary_env"
+install -m 600 "$temporary_env" .env
+rm -f "$temporary_env"
+unset DEEPSEEK_API_KEY
+```
+
 DeepSeek does not choose tools and cannot add evidence. The existing Agent
 still performs intent routing and calls only the bounded knowledge, metrics and
 forecast tools. Invalid citations, authentication errors, rate limits, timeouts
@@ -125,3 +145,4 @@ source and a separately validated model.
 | 50-question routing and citation evaluation | `artifacts/agent_benchmark.json` | `scripts/run_benchmark.py` |
 | Reproducible environment and input provenance | benchmark `environment`, `input_fingerprints` | `python -m json.tool` |
 | PEMS04 model metrics | `tests/fixtures/metrics_snapshot.json` | `scripts/run_benchmark.py` |
+| Optional grounded DeepSeek answers and fallback | `artifacts/deepseek_answer_metrics.json` | `scripts/evaluate_deepseek_answers.py` |
