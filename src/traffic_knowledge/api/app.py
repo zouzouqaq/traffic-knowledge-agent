@@ -39,6 +39,7 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     forecast_model: str | None = Field(default=None, min_length=1, max_length=64)
     forecast_inputs: list | None = None
+    forecast_target_time_features: list | None = None
 
     @field_validator("forecast_inputs")
     @classmethod

@@ -57,6 +57,7 @@ class AgentState(TypedDict, total=False):
     question: str
     forecast_model: str
     forecast_inputs: list
+    forecast_target_time_features: list
     intent: AgentIntent
     knowledge_result: AnswerResult
     metrics_result: MetricsSnapshot
@@ -79,7 +80,12 @@ def get_model_metrics(metrics_repository, path: Path) -> MetricsSnapshot:
     return metrics_repository.load(path)
 
 
-def run_traffic_forecast(forecast_client, model: str, inputs: list) -> ForecastResult:
+def run_traffic_forecast(
+    forecast_client,
+    model: str,
+    inputs: list,
+    target_time_features: list | None = None,
+) -> ForecastResult:
     """Run one forecast using the external forecasting service contract."""
     normalized_model = model.strip().lower()
     if not normalized_model:
@@ -88,7 +94,9 @@ def run_traffic_forecast(forecast_client, model: str, inputs: list) -> ForecastR
         raise ValueError("forecast_inputs must be a non-empty list")
     if np.asarray(inputs).ndim != 4:
         raise ValueError("forecast_inputs must be a four-dimensional array")
-    return forecast_client.forecast(normalized_model, inputs)
+    if target_time_features is None:
+        return forecast_client.forecast(normalized_model, inputs)
+    return forecast_client.forecast(normalized_model, inputs, target_time_features)
 
 
 def build_agent_graph(dependencies: AgentDependencies):
@@ -221,7 +229,12 @@ def _call_tool(tool: str, state: AgentState, dependencies: AgentDependencies):
                 "input_shape": tuple(np.asarray(inputs).shape),
             }
             result_key = "forecast_result"
-            result = run_traffic_forecast(dependencies.forecast_client, model, inputs)
+            result = run_traffic_forecast(
+                dependencies.forecast_client,
+                model,
+                inputs,
+                state.get("forecast_target_time_features"),
+            )
         return (
             result_key,
             result,

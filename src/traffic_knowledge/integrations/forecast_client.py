@@ -23,6 +23,8 @@ class ForecastResult:
     input_shape: tuple[int, ...]
     output_shape: tuple[int, ...]
     predictions: list
+    dataset: str | None = None
+    inference_time_ms: float | None = None
 
 
 class ForecastClient:
@@ -40,9 +42,14 @@ class ForecastClient:
         self.timeout_seconds = timeout_seconds
         self.transport = transport
 
-    def forecast(self, model: str, inputs: list) -> ForecastResult:
+    def forecast(
+        self,
+        model: str,
+        inputs: list,
+        target_time_features: list | None = None,
+    ) -> ForecastResult:
         normalized_model = model.strip().lower()
-        if not normalized_model or not normalized_model.replace("_", "").isalnum():
+        if not normalized_model or not normalized_model.replace("_", "").replace("-", "").isalnum():
             raise ValueError("model must contain only letters, numbers, or underscores")
         request_shape = tuple(np.asarray(inputs).shape)
         try:
@@ -51,9 +58,12 @@ class ForecastClient:
                 timeout=self.timeout_seconds,
                 transport=self.transport,
             ) as client:
+                request_payload = {"inputs": inputs}
+                if target_time_features is not None:
+                    request_payload["target_time_features"] = target_time_features
                 response = client.post(
                     f"/v1/forecast/{normalized_model}",
-                    json={"inputs": inputs},
+                    json=request_payload,
                 )
         except httpx.TimeoutException as error:
             raise ForecastIntegrationError("FORECAST_TIMEOUT", str(error)) from error
@@ -104,6 +114,8 @@ def _parse_result(payload) -> ForecastResult:
         input_shape=input_shape,
         output_shape=output_shape,
         predictions=predictions,
+        dataset=payload.get("dataset"),
+        inference_time_ms=payload.get("inference_time_ms"),
     )
 
 
