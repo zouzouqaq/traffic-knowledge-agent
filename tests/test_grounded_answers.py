@@ -9,6 +9,7 @@ from traffic_knowledge.application.question_answering import (
 )
 from traffic_knowledge.domain.retrieval import SearchHit
 from traffic_knowledge.integrations.deepseek import DeepSeekGeneration
+from traffic_knowledge.integrations.forecast_client import ForecastResult
 from traffic_knowledge.retrieval.citations import Citation
 
 
@@ -127,3 +128,29 @@ def test_question_answering_preserves_all_retrieved_evidence():
 
     assert [item.label for item in result.citations] == ["S1"]
     assert [item.label for item in result.evidence] == ["S1", "S2"]
+
+
+def test_deepseek_prompt_describes_completed_forecast_by_horizon():
+    client = RecordingDeepSeekClient("预测已完成。")
+    context = GroundedAnswerContext(
+        question="请预测未来两步交通流量。",
+        forecast=ForecastResult(
+            model="historical-average",
+            dataset="pems04",
+            input_shape=(1, 3, 2, 1),
+            output_shape=(1, 2, 2, 1),
+            predictions=[[[[10.0], [20.0]], [[30.0], [50.0]]]],
+            inference_time_ms=0.25,
+        ),
+    )
+
+    ResilientDeepSeekAnswerGenerator(
+        client=client,
+        fallback=EvidenceOnlyAnswerGenerator(),
+    ).generate(context)
+
+    assert '<forecast_result status="completed"' in client.user_prompt
+    assert 'model="historical-average"' in client.user_prompt
+    assert 'dataset="pems04"' in client.user_prompt
+    assert "per_horizon_mean=15.000000,40.000000" in client.user_prompt
+    assert "overall_mean=27.500000" in client.user_prompt

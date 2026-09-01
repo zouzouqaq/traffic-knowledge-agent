@@ -142,11 +142,24 @@ def _build_prompt(context: GroundedAnswerContext) -> str:
         )
     if context.forecast is not None:
         values = np.asarray(context.forecast.predictions, dtype=np.float64)
+        horizon_means = values.mean(axis=(0, 2, 3))
+        horizon_summary = ",".join(f"{value:.6f}" for value in horizon_means)
+        dataset = context.forecast.dataset or "unknown"
+        inference_time = context.forecast.inference_time_ms
+        inference_summary = (
+            f'{inference_time:.6f}' if inference_time is not None else "unknown"
+        )
         sections.append(
-            f'<forecast model="{html.escape(context.forecast.model, quote=True)}" '
+            f'<forecast_result status="completed" '
+            f'model="{html.escape(context.forecast.model, quote=True)}" '
+            f'dataset="{html.escape(dataset, quote=True)}" '
             f'output_shape="{html.escape(str(context.forecast.output_shape), quote=True)}" '
-            f'min="{values.min():.6f}" max="{values.max():.6f}" '
-            f'mean="{values.mean():.6f}" />'
+            f'inference_time_ms="{inference_summary}">'
+            f"This is a valid completed model prediction. "
+            f"per_horizon_mean={horizon_summary}; "
+            f"overall_min={values.min():.6f}; overall_max={values.max():.6f}; "
+            f"overall_mean={values.mean():.6f}"
+            f"</forecast_result>"
         )
     for error in context.errors:
         sections.append(
